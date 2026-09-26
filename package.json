@@ -1,6 +1,6 @@
 {
   "name": "ai-code-quality-analyzer",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Academic research tool for analyzing AI-generated vs human-authored React/Vite codebases",
   "type": "module",
   "main": "src/index.js",

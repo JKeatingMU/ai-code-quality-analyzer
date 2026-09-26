@@ -4,32 +4,11 @@
  * This module implements both traditional complexity metrics and a novel
  * AI-Code Quality Index (ACQI) specifically designed for evaluating
  * machine-generated code.
- *
- * Metrics version 2 (2026-09-26). Changes from version 1 (kept verbatim in
- * analyzer-v1.js, selected with `acqa analyze --legacy`, to reproduce
- * published results):
- * - JSX files are parsed in JSX mode (v1 passed ecmaFeatures.jsx, which
- *   typescript-estree ignores, so every JSX file failed to parse and Pure
- *   Function Ratio, Decomposability and Cognitive Complexity fell back to
- *   defaults).
- * - Decomposability requests node ranges (v1 never did, so it returned 0.5
- *   for any file containing a function).
- * - Type Explicitness walks the AST: typed declaration slots / all slots.
- *   A file with no slots returns null (not applicable) instead of 1.0, and
- *   ACQI is then the weighted mean of the remaining sub-metrics.
  */
 
 import { parse } from '@typescript-eslint/typescript-estree';
 import fs from 'fs/promises';
 import path from 'path';
-
-export const METRICS_VERSION = 2;
-
-let parseJSX = true;
-
-function parseCode(code, extra = {}) {
-  return parse(code, { ecmaVersion: 'latest', sourceType: 'module', jsx: parseJSX, ...extra });
-}
 
 /**
  * Calculate McCabe Cyclomatic Complexity
@@ -64,7 +43,13 @@ export function calculateMcCabeComplexity(code) {
  */
 export function calculateCognitiveComplexity(code) {
   try {
-    const ast = parseCode(code);
+    const ast = parse(code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      ecmaFeatures: { jsx: true },
+      comment: false,
+      loc: false
+    });
     
     let complexity = 0;
     let nestingLevel = 0;
@@ -116,70 +101,16 @@ export function calculateCognitiveComplexity(code) {
 
 /**
  * NOVEL METRIC 1: Type Explicitness Score
- * Share of declaration slots that carry an explicit type. Slots: each function
- * parameter, the return type of each block-bodied function, each variable that
- * is neither destructured nor initialised with a function, and each interface
- * property. Returns null when a file has no slots (not applicable).
+ * Measures ratio of explicit types vs 'any' or implicit types
+ * Higher score = better for AI-generated code (indicates type discipline)
  */
 export function calculateTypeExplicitness(code) {
-  let ast;
-  try {
-    ast = parseCode(code);
-  } catch (error) {
-    return null;
-  }
-
-  let typed = 0;
-  let untyped = 0;
-  const isFunction = n => n && ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(n.type);
-
-  function paramTyped(p) {
-    if (!p) return false;
-    if (p.typeAnnotation) return true;
-    if (p.type === 'AssignmentPattern') return paramTyped(p.left);
-    if (p.type === 'RestElement') return paramTyped(p.argument);
-    if (p.type === 'TSParameterProperty') return paramTyped(p.parameter);
-    return false;
-  }
-
-  function traverse(node) {
-    if (!node || typeof node !== 'object') return;
-
-    if (isFunction(node)) {
-      for (const p of node.params || []) paramTyped(p) ? typed++ : untyped++;
-      if (node.returnType) typed++;
-      else if (node.body && node.body.type === 'BlockStatement') untyped++;
-    }
-
-    if (node.type === 'VariableDeclarator') {
-      if (node.id && node.id.typeAnnotation) typed++;
-      else if (node.id && node.id.type === 'Identifier' && node.init && !isFunction(node.init)) untyped++;
-    }
-
-    if (node.type === 'TSPropertySignature' && node.typeAnnotation) typed++;
-
-    for (const key in node) {
-      if (key === 'parent') continue;
-      const child = node[key];
-      if (Array.isArray(child)) child.forEach(traverse);
-      else if (child && typeof child === 'object') traverse(child);
-    }
-  }
-
-  traverse(ast);
-  const total = typed + untyped;
-  return total === 0 ? null : typed / total;
-}
-
-/**
- * Version 1 Type Explicitness (regular-expression heuristic), kept for
- * comparison exercises. Not used in ACQI from version 2.
- */
-export function calculateTypeExplicitnessRegex(code) {
   const anyCount = (code.match(/:\s*any\b/g) || []).length;
-  const implicitCount = (code.match(/=\s*\(/g) || []).length;
+  const implicitCount = (code.match(/=\s*\(/g) || []).length; // Approximate implicit returns
   const explicitCount = (code.match(/:\s*[A-Z][a-zA-Z<>[\],\s]*/g) || []).length;
+  
   if (explicitCount + anyCount + implicitCount === 0) return 1.0;
+  
   return explicitCount / (explicitCount + anyCount + implicitCount);
 }
 
@@ -190,7 +121,11 @@ export function calculateTypeExplicitnessRegex(code) {
  */
 export function calculatePureFunctionRatio(code) {
   try {
-    const ast = parseCode(code);
+    const ast = parse(code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      ecmaFeatures: { jsx: true }
+    });
     
     let totalFunctions = 0;
     let pureFunctions = 0;
@@ -279,7 +214,11 @@ export function calculatePureFunctionRatio(code) {
  */
 export function calculateDecomposability(code) {
   try {
-    const ast = parseCode(code, { range: true });
+    const ast = parse(code, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      ecmaFeatures: { jsx: true }
+    });
     
     const functionSizes = [];
     
@@ -381,21 +320,13 @@ export function calculateStructuralPredictability(code) {
  * Returns: 0.0 to 1.0 (higher is better)
  */
 export function calculateACQI(metrics) {
-  const weights = {
-    typeExplicitness: 0.25,
-    pureFunctionRatio: 0.30,
-    decomposability: 0.20,
-    patternConsistency: 0.15,
-    structuralPredictability: 0.10
-  };
-  let sum = 0;
-  let weight = 0;
-  for (const [k, w] of Object.entries(weights)) {
-    if (metrics[k] == null) continue;
-    sum += w * metrics[k];
-    weight += w;
-  }
-  return weight === 0 ? null : sum / weight;
+  return (
+    0.25 * metrics.typeExplicitness +
+    0.30 * metrics.pureFunctionRatio +
+    0.20 * metrics.decomposability +
+    0.15 * metrics.patternConsistency +
+    0.10 * metrics.structuralPredictability
+  );
 }
 
 /**
@@ -403,7 +334,6 @@ export function calculateACQI(metrics) {
  */
 export async function analyzeFile(filePath) {
   const code = await fs.readFile(filePath, 'utf-8');
-  parseJSX = !/\.(ts|mts|cts)$/.test(filePath);
   const lines = code.split('\n').length;
   const size = code.length;
   
@@ -437,13 +367,13 @@ export async function analyzeFile(filePath) {
     mccabeComplexity: mccabe,
     cognitiveComplexity: cognitive,
     // Novel AI-specific metrics
-    typeExplicitness: typeExplicitness == null ? null : Number(typeExplicitness.toFixed(3)),
+    typeExplicitness: Number(typeExplicitness.toFixed(3)),
     pureFunctionRatio: Number(pureFunctionRatio.toFixed(3)),
     decomposability: Number(decomposability.toFixed(3)),
     patternConsistency: Number(patternConsistency.toFixed(3)),
     structuralPredictability: Number(structuralPredictability.toFixed(3)),
     // Composite AI metric
-    acqi: acqi == null ? null : Number(acqi.toFixed(3))
+    acqi: Number(acqi.toFixed(3))
   };
 }
 

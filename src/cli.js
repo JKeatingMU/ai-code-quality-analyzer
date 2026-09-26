@@ -14,14 +14,13 @@ import ora from 'ora';
 import { glob } from 'glob';
 import path from 'path';
 import fs from 'fs/promises';
-import { analyzeFile } from './analyzer.js';
 
 const program = new Command();
 
 program
   .name('acqa')
   .description('AI Code Quality Analyzer - Research tool for evaluating AI vs human-generated code')
-  .version('1.0.0');
+  .version('2.0.0');
 
 program
   .command('analyze')
@@ -31,10 +30,14 @@ program
   .option('-t, --type <type>', 'Code type: human|ai|unknown', 'unknown')
   .option('-p, --prompts <file>', 'JSON file containing prompts (for AI-generated code)')
   .option('--exclude <patterns>', 'Comma-separated glob patterns to exclude', 'node_modules,dist,build,.git')
+  .option('--legacy', 'Use metrics version 1 (reproduces results published before September 2026)')
   .action(async (directory, options) => {
+    const { analyzeFile } = await import(options.legacy ? './analyzer-v1.js' : './analyzer.js');
+    const metricsVersion = options.legacy ? 1 : 2;
     console.log(chalk.blue.bold('\n🔬 AI Code Quality Analyzer\n'));
     console.log(chalk.gray(`Directory: ${directory}`));
-    console.log(chalk.gray(`Type: ${options.type}\n`));
+    console.log(chalk.gray(`Type: ${options.type}`));
+    console.log(chalk.gray(`Metrics version: ${metricsVersion}${options.legacy ? ' (legacy)' : ''}\n`));
     
     const spinner = ora('Scanning for TypeScript/JavaScript files...').start();
     
@@ -93,6 +96,8 @@ program
           analyzedAt: new Date().toISOString(),
           directory: path.resolve(directory),
           codeType: options.type,
+          acqaVersion: '2.0.0',
+          metricsVersion,
           totalFiles: results.length,
           totalLines: results.reduce((sum, r) => sum + r.lines, 0),
           totalSize: results.reduce((sum, r) => sum + r.size, 0)
@@ -231,17 +236,17 @@ function generateCSV(results) {
   const rows = results.map(r => [
     r.source,
     r.type,
-    r.mccabeComplexity?.mean || '',
-    r.mccabeComplexity?.median || '',
-    r.cognitiveComplexity?.mean || '',
-    r.cognitiveComplexity?.median || '',
-    r.typeExplicitness?.mean || '',
-    r.pureFunctionRatio?.mean || '',
-    r.decomposability?.mean || '',
-    r.patternConsistency?.mean || '',
-    r.structuralPredictability?.mean || '',
-    r.acqi?.mean || '',
-    r.acqi?.median || ''
+    r.mccabeComplexity?.mean ?? '',
+    r.mccabeComplexity?.median ?? '',
+    r.cognitiveComplexity?.mean ?? '',
+    r.cognitiveComplexity?.median ?? '',
+    r.typeExplicitness?.mean ?? '',
+    r.pureFunctionRatio?.mean ?? '',
+    r.decomposability?.mean ?? '',
+    r.patternConsistency?.mean ?? '',
+    r.structuralPredictability?.mean ?? '',
+    r.acqi?.mean ?? '',
+    r.acqi?.median ?? ''
   ].join(','));
   
   return [headers.join(','), ...rows].join('\n');
