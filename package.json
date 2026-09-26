@@ -1,0 +1,35 @@
+{
+  "name": "ai-code-quality-analyzer",
+  "version": "1.0.0",
+  "description": "Academic research tool for analyzing AI-generated vs human-authored React/Vite codebases",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "acqa": "./src/cli.js"
+  },
+  "scripts": {
+    "analyze": "node src/cli.js",
+    "aggregate": "node src/aggregate.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "code-quality",
+    "complexity-analysis",
+    "ai-generated-code",
+    "static-analysis"
+  ],
+  "author": "Academic Research Project",
+  "license": "MIT",
+  "dependencies": {
+    "@typescript-eslint/parser": "^6.0.0",
+    "@typescript-eslint/typescript-estree": "^6.0.0",
+    "glob": "^10.3.10",
+    "commander": "^11.1.0",
+    "chalk": "^5.3.0",
+    "ora": "^7.0.1",
+    "jscpd": "^4.0.5"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
