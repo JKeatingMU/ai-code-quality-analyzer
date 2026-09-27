@@ -340,10 +340,10 @@ export function calculatePureFunctionRatio(code) {
  * score is the LOC-weighted mean over its units. Null when a file has no units.
  */
 export const DECOMPOSABILITY_THRESHOLDS = {
-  moderate: 61,
-  high: 85,
-  veryHigh: 138,
-  provenance: 'AYV (2010) steps 1-6; 193 distinct pre-Copilot React/TypeScript repositories (MIT/Apache-2.0, state at last commit before 2022-06-01; importing react or next; 27 near-duplicate template copies removed), 17,214 units, tests and generated code removed; all systems retained pending expert review of 12 flagged by the outlier rule (without them: 58/79/118); derived 2026-09-27, ACQA benchmark-pre-copilot/thresholds.json',
+  moderate: 58,
+  high: 79,
+  veryHigh: 118,
+  provenance: 'AYV (2010) steps 1-6; 181 distinct pre-Copilot React/TypeScript repositories (MIT/Apache-2.0, state at last commit before 2022-06-01; importing react or next; 27 near-duplicate template copies and 12 outlier-rule systems removed after review), 16,316 units, tests and generated code removed; derived 2026-09-27, ACQA benchmark-pre-copilot/thresholds.json',
 };
 
 export function extractUnits(code, { jsx = true } = {}) {
