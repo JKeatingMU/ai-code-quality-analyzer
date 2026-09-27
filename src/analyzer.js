@@ -321,49 +321,69 @@ export function calculatePureFunctionRatio(code) {
 
 /**
  * NOVEL METRIC 3: Decomposability Score (metrics v2.1)
- * Function-length risk thresholds are derived from benchmark data, not chosen:
- * LOC-weighted, repository-normalised 70th/80th/90th percentiles of function
- * length in a pre-Copilot benchmark of permissively licensed React/TypeScript
- * repositories (method of Alves, Ypma and Visser, 2010). See
- * DECOMPOSABILITY_THRESHOLDS for the values and their provenance.
- * Each function scores 1 (low risk), 2/3 (moderate), 1/3 (high) or 0 (very
- * high); the file score is the line-weighted mean. Null when a file has no
- * functions.
+ *
+ * Unit size follows Alves, Ypma and Visser (2010), "Deriving metric thresholds
+ * from benchmark data", ICSM, doi:10.1109/ICSM.2010.5609747:
+ * - A unit is a top-level function or a class method: a function not nested
+ *   inside another function. Nested functions (event handlers, callbacks) are
+ *   part of the unit that contains them, as Java lambdas are part of their
+ *   method, so every line of code belongs to exactly one unit.
+ * - Unit size is its lines of code: lines inside the unit containing at least
+ *   one token (not blank, not comment-only).
+ * Risk thresholds are the 70th/80th/90th percentiles of the LOC-weighted,
+ * system-normalised unit-size distribution of a benchmark (see
+ * DECOMPOSABILITY_THRESHOLDS). The same function, extractUnits, measures both
+ * the benchmark and the code being analysed, as the method requires.
+ *
+ * Scoring is ACQA's own choice, not part of the AYV method: each unit scores
+ * 1 (low risk), 2/3 (moderate), 1/3 (high) or 0 (very high), and the file
+ * score is the LOC-weighted mean over its units. Null when a file has no units.
  */
 export const DECOMPOSABILITY_THRESHOLDS = {
-  moderate: 56,
-  high: 81,
-  veryHigh: 134,
-  provenance: 'LOC-weighted, repository-normalised p70/p80/p90 of function length; 224 pre-Copilot React/TypeScript repositories (MIT/Apache-2.0, state at last commit before 2022-06-01), 56,276 functions; derived 2026-09-27 (ACQA benchmark-pre-copilot)',
+  moderate: 61,
+  high: 85,
+  veryHigh: 138,
+  provenance: 'AYV (2010) steps 1-6; 193 distinct pre-Copilot React/TypeScript repositories (MIT/Apache-2.0, state at last commit before 2022-06-01; importing react or next; 27 near-duplicate template copies removed), 17,214 units, tests and generated code removed; all systems retained pending expert review of 12 flagged by the outlier rule (without them: 58/79/118); derived 2026-09-27, ACQA benchmark-pre-copilot/thresholds.json',
 };
 
-export function decompositionScore(lines, t = DECOMPOSABILITY_THRESHOLDS) {
-  if (lines <= t.moderate) return 1;
-  if (lines <= t.high) return 2 / 3;
-  if (lines <= t.veryHigh) return 1 / 3;
+export function extractUnits(code, { jsx = true } = {}) {
+  const ast = parse(code, { ecmaVersion: 'latest', sourceType: 'module', jsx, range: true, loc: true, tokens: true });
+  const tokenLines = new Set();
+  for (const t of ast.tokens) {
+    for (let l = t.loc.start.line; l <= t.loc.end.line; l++) tokenLines.add(l);
+  }
+  const units = [];
+  (function walk(node, insideFunction) {
+    if (!node || typeof node !== 'object') return;
+    const isFn = FUNCTION_TYPES.includes(node.type) && node.body;
+    if (isFn && !insideFunction) {
+      let loc = 0;
+      for (let l = node.loc.start.line; l <= node.loc.end.line; l++) if (tokenLines.has(l)) loc++;
+      units.push({ loc, startLine: node.loc.start.line, endLine: node.loc.end.line });
+    }
+    for (const key in node) {
+      if (key === 'parent' || key === 'tokens' || key === 'comments') continue;
+      const child = node[key];
+      if (Array.isArray(child)) child.forEach(c => walk(c, insideFunction || isFn));
+      else if (child && typeof child === 'object') walk(child, insideFunction || isFn);
+    }
+  })(ast, false);
+  return units;
+}
+
+export function decompositionScore(loc, t = DECOMPOSABILITY_THRESHOLDS) {
+  if (loc <= t.moderate) return 1;
+  if (loc <= t.high) return 2 / 3;
+  if (loc <= t.veryHigh) return 1 / 3;
   return 0;
 }
 
 export function calculateDecomposability(code) {
   try {
-    const ast = parseCode(code, { range: true });
-    let weighted = 0;
-    let lines = 0;
-    (function walk(node) {
-      if (!node || typeof node !== 'object') return;
-      if (FUNCTION_TYPES.includes(node.type) && node.body) {
-        const L = code.slice(node.range[0], node.range[1]).split('\n').length;
-        weighted += L * decompositionScore(L);
-        lines += L;
-      }
-      for (const key in node) {
-        if (key === 'parent') continue;
-        const child = node[key];
-        if (Array.isArray(child)) child.forEach(walk);
-        else if (child && typeof child === 'object') walk(child);
-      }
-    })(ast);
-    return lines === 0 ? null : weighted / lines;
+    const units = extractUnits(code, { jsx: parseJSX });
+    const total = units.reduce((a, u) => a + u.loc, 0);
+    if (total === 0) return null;
+    return units.reduce((a, u) => a + u.loc * decompositionScore(u.loc), 0) / total;
   } catch (error) {
     return null;
   }

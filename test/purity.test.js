@@ -60,3 +60,21 @@ test('decomposition score steps down at the thresholds', () => {
 test('a file with no functions has no decomposability score', () => {
   assert.equal(calculateDecomposability('export const X = 1;'), null);
 });
+
+import { extractUnits } from '../src/analyzer.js';
+test('units are top-level functions; nested handlers belong to their unit', () => {
+  const code = [
+    'const C = ({ onAdd }) => {',
+    '  // a comment line',
+    '',
+    '  const h = () => {',
+    '    onAdd(1);',
+    '  };',
+    '  return <button onClick={h}>Add</button>;',
+    '};',
+    'function helper(x: number) { return x * 2; }',
+  ].join('\n');
+  const units = extractUnits(code);
+  assert.equal(units.length, 2);
+  assert.deepEqual(units.map(u => u.loc), [6, 1]);
+});
