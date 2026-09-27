@@ -331,10 +331,10 @@ export function calculatePureFunctionRatio(code) {
  * functions.
  */
 export const DECOMPOSABILITY_THRESHOLDS = {
-  moderate: 60,
-  high: 80,
-  veryHigh: 128,
-  provenance: 'PROVISIONAL: partial benchmark (37 repositories), 2026-09-27; replace with the full derivation',
+  moderate: 56,
+  high: 81,
+  veryHigh: 134,
+  provenance: 'LOC-weighted, repository-normalised p70/p80/p90 of function length; 224 pre-Copilot React/TypeScript repositories (MIT/Apache-2.0, state at last commit before 2022-06-01), 56,276 functions; derived 2026-09-27 (ACQA benchmark-pre-copilot)',
 };
 
 export function decompositionScore(lines, t = DECOMPOSABILITY_THRESHOLDS) {

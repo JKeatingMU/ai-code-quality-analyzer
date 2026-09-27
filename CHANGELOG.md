@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0 (unreleased, branch v2.1): metrics version 2.1
+
+- **Pure function ratio.** A function is impure only if its own body mutates something it did not declare, calls a known side-effecting API or reads a browser global, calls a state setter, `dispatch` or a callback received as a parameter (its own or an enclosing function's), or calls a mutating method on something it did not declare. React hooks are not effects, and nested functions are judged separately. Version 2 treated any function call as a side effect, which scored almost all React code as impure. The rule is defined by 23 unit tests in `test/purity.test.js`. Validation against independent human labelling is planned.
+- **Decomposability.** Each function falls into a risk band by length: up to 56 lines scores 1, up to 81 scores 2/3, up to 134 scores 1/3, and longer scores 0. The file score is the line-weighted mean. The thresholds are the LOC-weighted, repository-normalised 70th, 80th and 90th percentiles of function length in a benchmark of 224 pre-Copilot, permissively licensed React/TypeScript repositories (56,276 functions), following Alves, Ypma and Visser (2010). Version 2 used a fixed 50-line cut-off.
+- Both return `null` when a file has no functions, and ACQI is then calculated from the remaining sub-metrics.
+- Effect on the published corpus findings: see `results/acqa-v21-comparison/README.md` in the ACQA project.
+
 ## 2.0.0 (2026-09-26): metrics version 2
 
 Fixes that change measured values. Run `acqa analyze --legacy` to use metrics version 1 (`src/analyzer-v1.js`, unchanged) and reproduce results published before September 2026.
