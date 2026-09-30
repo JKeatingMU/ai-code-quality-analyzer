@@ -20,7 +20,7 @@ const program = new Command();
 program
   .name('acqa')
   .description('AI Code Quality Analyzer - Research tool for evaluating AI vs human-generated code')
-  .version('2.1.0');
+  .version('2.1.1');
 
 program
   .command('analyze')
@@ -32,7 +32,7 @@ program
   .option('--exclude <patterns>', 'Comma-separated glob patterns to exclude', 'node_modules,dist,build,.git')
   .option('--legacy', 'Use metrics version 1 (reproduces results published before September 2026)')
   .action(async (directory, options) => {
-    const analyzer = await import(options.legacy ? './analyzer-v1.js' : './analyzer.js');
+    const analyzer = await import(options.legacy ? '../legacy/analyzer-v1.js' : './analyzer.js');
     const { analyzeFile } = analyzer;
     const metricsVersion = options.legacy ? 1 : analyzer.METRICS_VERSION;
     console.log(chalk.blue.bold('\n🔬 AI Code Quality Analyzer\n'));
@@ -97,7 +97,7 @@ program
           analyzedAt: new Date().toISOString(),
           directory: path.resolve(directory),
           codeType: options.type,
-          acqaVersion: '2.1.0',
+          acqaVersion: '2.1.1',
           metricsVersion,
           totalFiles: results.length,
           totalLines: results.reduce((sum, r) => sum + r.lines, 0),

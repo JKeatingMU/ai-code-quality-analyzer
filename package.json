@@ -1,24 +1,26 @@
 {
   "name": "ai-code-quality-analyzer",
-  "version": "2.1.0",
-  "description": "Academic research tool for analyzing AI-generated vs human-authored React/Vite codebases",
+  "version": "2.1.1",
+  "description": "ACQA: static analysis of React/TypeScript code computing the AI-Code Quality Index (ACQI) and complexity metrics",
   "type": "module",
-  "main": "src/index.js",
+  "main": "src/analyzer.js",
   "bin": {
     "acqa": "./src/cli.js"
   },
   "scripts": {
-    "analyze": "node src/cli.js",
-    "aggregate": "node src/aggregate.js",
+    "analyze": "node src/cli.js analyze",
+    "aggregate": "node src/cli.js aggregate",
     "test": "node --test"
   },
   "keywords": [
     "code-quality",
-    "complexity-analysis",
+    "software-metrics",
     "ai-generated-code",
-    "static-analysis"
+    "static-analysis",
+    "react",
+    "typescript"
   ],
-  "author": "Academic Research Project",
+  "author": "John G. Keating (Maynooth University)",
   "license": "MIT",
   "dependencies": {
     "@typescript-eslint/parser": "^6.0.0",
@@ -31,5 +33,12 @@
   },
   "devDependencies": {
     "typescript": "^5.3.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/JKeatingMU/ai-code-quality-analyzer.git"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
