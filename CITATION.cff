@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use ACQA in research, please cite it as below and state the metrics version you used."
+title: "ACQA: AI-Code Quality Analyzer"
+abstract: "Static analyser for React/TypeScript code that computes the AI-Code Quality Index (ACQI), a structural index for machine-maintainable code, alongside cyclomatic and cognitive complexity."
+type: software
+authors:
+  - family-names: Keating
+    given-names: John G.
+    affiliation: Maynooth University
+    orcid: "https://orcid.org/0000-0002-5063-2773"
+version: 2.1.1
+date-released: 2026-10-01
+license: MIT
+repository-code: "https://github.com/JKeatingMU/ai-code-quality-analyzer"
+keywords:
+  - code quality
+  - software metrics
+  - AI-generated code
+  - static analysis
+  - React
+  - TypeScript
